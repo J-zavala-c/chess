@@ -93,9 +93,10 @@ class BoardGUI(tk.Tk):
         buttons_frame.pack(pady=5)
         
         ttk.Button(buttons_frame, text="Nuevo Juego", command=self._new_game).grid(row=0, column=0, padx=3, pady=3)
-        ttk.Button(buttons_frame, text="Deshacer", command=self._undo).grid(row=0, column=1, padx=3, pady=3)
-        ttk.Button(buttons_frame, text="Guardar", command=self._save_game).grid(row=1, column=0, padx=3, pady=3)
-        ttk.Button(buttons_frame, text="Cargar", command=self._load_game).grid(row=1, column=1, padx=3, pady=3)
+        ttk.Button(buttons_frame, text="Reiniciar", command=self._restart_game).grid(row=0, column=1, padx=3, pady=3)
+        ttk.Button(buttons_frame, text="Deshacer", command=self._undo).grid(row=1, column=0, padx=3, pady=3)
+        ttk.Button(buttons_frame, text="Guardar", command=self._save_game).grid(row=1, column=1, padx=3, pady=3)
+        ttk.Button(buttons_frame, text="Cargar", command=self._load_game).grid(row=2, column=0, columnspan=2, padx=3, pady=3, sticky="ew")
 
     # draw
     def _load_piece_images(self):
@@ -404,7 +405,7 @@ class BoardGUI(tk.Tk):
                     self.game_over = True
                     messagebox.showinfo("Tablas", "La partida ha terminado en tablas.")
                 elif self.game.board.is_check():
-                    # notify check but do not stop the game
+                    # notify check but allow game to continue
                     messagebox.showinfo("Jaque", "¡Jaque al rey!")
                 return True
             
@@ -572,9 +573,17 @@ class BoardGUI(tk.Tk):
     def _new_game(self):
         self.game.reset()
         self.selected_square = None
+        self.suggested_moves = set()
+        self.game_over = False
         self.ai_thinking = False
+        self.move_history = []
         self._draw_board()
         dbg("[GAME] new game started. fen:", self.game.board.fen())
+
+    def _restart_game(self):
+        """Reinicia la partida actual (alias para _new_game)"""
+        self._new_game()
+        messagebox.showinfo("Reiniciar", "Partida reiniciada.")
 
     def _undo(self):
         """Deshacer los últimos 2 movimientos (jugador + IA)"""
