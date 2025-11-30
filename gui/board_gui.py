@@ -369,8 +369,8 @@ class BoardGUI(tk.Tk):
                 self.selected_square = None
                 self._draw_board()
                 dbg("[MOVE] applied. fen after:", self.game.board.fen(), "turn:", ("WHITE" if self.game.board.turn==chess.WHITE else "BLACK"))
-                # if now AI's turn, trigger AI
-                if self.game.board.turn == chess.BLACK:
+                # if now AI's turn AND game not over, trigger AI
+                if self.game.board.turn == chess.BLACK and not self.game_over:
                     self.after(120, self._ai_move)
             else:
                 dbg("[MOVE] not applied")
@@ -400,15 +400,17 @@ class BoardGUI(tk.Tk):
                 # Check end of game conditions
                 if self.game.board.is_checkmate():
                     self.game_over = True
+                    dbg("[CHECKMATE] Game over! Result:", self.game.board.result())
                     messagebox.showinfo("Jaque mate", f"Jaque mate. Resultado: {self.game.board.result()}")
+                    dbg("[CHECKMATE] Dialog closed, scheduling restart...")
                     self.after(500, self._new_game)  # Auto-restart after 500ms
                 elif self.game.board.is_stalemate() or self.game.board.is_insufficient_material():
                     self.game_over = True
+                    dbg("[STALEMATE] Game over!")
                     messagebox.showinfo("Tablas", "La partida ha terminado en tablas.")
+                    dbg("[STALEMATE] Dialog closed, scheduling restart...")
                     self.after(500, self._new_game)  # Auto-restart after 500ms
-                elif self.game.board.is_check():
-                    # notify check but allow game to continue
-                    messagebox.showinfo("Jaque", "¡Jaque al rey!")
+                # NOTE: No check notification here - only notify after AI moves (when it's player's turn)
                 return True
             
             # match by UCI
@@ -430,8 +432,7 @@ class BoardGUI(tk.Tk):
                         self.game_over = True
                         messagebox.showinfo("Tablas", "La partida ha terminado en tablas.")
                         self.after(500, self._new_game)  # Auto-restart after 500ms
-                    elif self.game.board.is_check():
-                        messagebox.showinfo("Jaque", "¡Jaque al rey!")
+                    # NOTE: No check notification here - only notify after AI moves (when it's player's turn)
                     return True
             
             # try SAN matching: convert all legal to SAN and compare? skip - risky
@@ -504,13 +505,18 @@ class BoardGUI(tk.Tk):
                             # Check end of game
                             if self.game.board.is_checkmate():
                                 self.game_over = True
+                                dbg("[AI CHECKMATE] Game over! Result:", self.game.board.result())
                                 messagebox.showinfo("Jaque mate", f"Jaque mate. Resultado: {self.game.board.result()}")
+                                dbg("[AI CHECKMATE] Dialog closed, scheduling restart...")
                                 self.after(500, self._new_game)  # Auto-restart after 500ms
                             elif self.game.board.is_stalemate() or self.game.board.is_insufficient_material():
                                 self.game_over = True
+                                dbg("[AI STALEMATE] Game over!")
                                 messagebox.showinfo("Tablas", "La partida ha terminado en tablas.")
+                                dbg("[AI STALEMATE] Dialog closed, scheduling restart...")
                                 self.after(500, self._new_game)  # Auto-restart after 500ms
-                            elif self.game.board.is_check():
+                            elif self.game.board.is_check() and self.game.board.turn == chess.WHITE:
+                                # Only notify check if it's the player's turn (WHITE) and they are in check
                                 messagebox.showinfo("Jaque", "¡Jaque al rey!")
                         else:
                             # try to match by uci string
@@ -527,13 +533,18 @@ class BoardGUI(tk.Tk):
                                     # Check end of game
                                     if self.game.board.is_checkmate():
                                         self.game_over = True
+                                        dbg("[AI CHECKMATE] Game over! Result:", self.game.board.result())
                                         messagebox.showinfo("Jaque mate", f"Jaque mate. Resultado: {self.game.board.result()}")
+                                        dbg("[AI CHECKMATE] Dialog closed, scheduling restart...")
                                         self.after(500, self._new_game)  # Auto-restart after 500ms
                                     elif self.game.board.is_stalemate() or self.game.board.is_insufficient_material():
                                         self.game_over = True
+                                        dbg("[AI STALEMATE] Game over!")
                                         messagebox.showinfo("Tablas", "La partida ha terminado en tablas.")
+                                        dbg("[AI STALEMATE] Dialog closed, scheduling restart...")
                                         self.after(500, self._new_game)  # Auto-restart after 500ms
-                                    elif self.game.board.is_check():
+                                    elif self.game.board.is_check() and self.game.board.turn == chess.WHITE:
+                                        # Only notify check if it's the player's turn (WHITE) and they are in check
                                         messagebox.showinfo("Jaque", "¡Jaque al rey!")
                                     pushed = True
                                     break
