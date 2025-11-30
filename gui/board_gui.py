@@ -455,30 +455,22 @@ class BoardGUI(tk.Tk):
         def worker():
             mv = None
             try:
-                if self.ai_available:
-                    # Primero intenta Stockfish
-                    mv = self.ai.best_move(self.game.board, time_limit=0.8)
-                    dbg("[AI] stockfish returned:", mv)
-                    
-                    # Si Stockfish no retorna, usa estrategia táctica
-                    if mv is None:
-                        mv = self.ai.get_tactical_move(self.game.board)
-                        dbg("[AI] tactical move selected:", mv)
-                else:
-                    # Si no hay Stockfish, usa táctica
-                    mv = self.ai.get_tactical_move(self.game.board)
-                    dbg("[AI] tactical move (no stockfish):", mv)
+                # Usar smart_move que combina Stockfish + táctica inteligente
+                mv = self.ai.get_smart_move(self.game.board)
+                dbg("[AI] smart move selected:", mv)
                     
             except Exception as e:
-                dbg("[AI] stockfish error:", e)
+                dbg("[AI] error computing smart move:", e)
                 traceback.print_exc()
                 mv = None
 
             if mv is None:
-                # Fallback: intenta táctica
+                # Fallback: intenta mejor movimiento disponible (aleatorio)
                 try:
-                    mv = self.ai.get_tactical_move(self.game.board)
-                    dbg("[AI] fallback tactical move:", mv)
+                    leg = list(self.game.board.legal_moves)
+                    if leg:
+                        mv = leg[0]
+                        dbg("[AI] fallback to first legal move:", mv)
                 except:
                     pass
             
