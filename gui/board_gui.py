@@ -41,7 +41,7 @@ class BoardGUI(tk.Tk):
     def __init__(self, game: GameManager, ai: StockfishAI, db: DBManager):
         super().__init__()
         self.title("♟ Ajedrez — Jugador (blancas) vs IA (negras)")
-        self.geometry("1050x750")
+        self.geometry("1100x800")
         self.resizable(False, False)
 
         self.game = game
@@ -58,6 +58,8 @@ class BoardGUI(tk.Tk):
         self.game_over = False
         self.ai_thinking = False
         self.move_history = []  # Historial de movimientos en SAN
+        self.show_control_squares = True  # Toggle para mostrar cuadrados de control
+        self.controlled_squares = set()  # Cuadrados controlados por IA
 
         # try to start engine, but continue if not available
         self.ai_available = False
@@ -77,26 +79,61 @@ class BoardGUI(tk.Tk):
 
     # UI
     def _create_layout(self):
-        self.canvas = tk.Canvas(self, width=8 * SQUARE_SIZE, height=8 * SQUARE_SIZE)
+        self.canvas = tk.Canvas(self, width=8 * SQUARE_SIZE, height=8 * SQUARE_SIZE, bg="white")
         self.canvas.place(x=30, y=30)
         self.canvas.bind("<Button-1>", self._on_click)
 
         side = ttk.Frame(self)
         side.place(x=700, y=30)
 
-        ttk.Label(side, text="📜 Movimientos", font=("Arial", 12, "bold")).pack(anchor="w")
-        self.move_text = tk.Text(side, width=38, height=18, state="disabled", relief="solid", borderwidth=1)
-        self.move_text.pack(pady=10)
+        # ===== DIFICULTAD =====
+        ttk.Label(side, text="⚙️ Dificultad", font=("Arial", 11, "bold")).pack(anchor="w", pady=(10, 5))
+        difficulty_frame = ttk.Frame(side)
+        difficulty_frame.pack(anchor="w", padx=5)
+        
+        self.difficulty_var = tk.StringVar(value="medio")
+        for diff in ["fácil", "medio", "difícil"]:
+            ttk.Radiobutton(difficulty_frame, text=diff.capitalize(), variable=self.difficulty_var, 
+                          value=diff, command=self._change_difficulty).pack(anchor="w")
+        
+        # ===== INFORMACIÓN =====
+        ttk.Label(side, text="📊 Análisis", font=("Arial", 11, "bold")).pack(anchor="w", pady=(10, 5))
+        self.eval_label = ttk.Label(side, text="Evaluación: -", wraplength=300, justify="left")
+        self.eval_label.pack(anchor="w", padx=5, pady=2)
+        
+        self.info_label = ttk.Label(side, text="", wraplength=300, justify="left", foreground="gray")
+        self.info_label.pack(anchor="w", padx=5, pady=2)
+        
+        # ===== MOVIMIENTOS =====
+        ttk.Label(side, text="📜 Movimientos", font=("Arial", 11, "bold")).pack(anchor="w", pady=(10, 5))
+        self.move_text = tk.Text(side, width=38, height=12, state="disabled", relief="solid", borderwidth=1)
+        self.move_text.pack(pady=5)
 
-        # Botones de control
+        # ===== BOTONES =====
         buttons_frame = ttk.Frame(side)
         buttons_frame.pack(pady=5)
         
-        ttk.Button(buttons_frame, text="Nuevo Juego", command=self._new_game).grid(row=0, column=0, padx=3, pady=3)
-        ttk.Button(buttons_frame, text="Reiniciar", command=self._restart_game).grid(row=0, column=1, padx=3, pady=3)
-        ttk.Button(buttons_frame, text="Deshacer", command=self._undo).grid(row=1, column=0, padx=3, pady=3)
-        ttk.Button(buttons_frame, text="Guardar", command=self._save_game).grid(row=1, column=1, padx=3, pady=3)
-        ttk.Button(buttons_frame, text="Cargar", command=self._load_game).grid(row=2, column=0, columnspan=2, padx=3, pady=3, sticky="ew")
+        ttk.Button(buttons_frame, text="Nuevo", command=self._new_game, width=8).grid(row=0, column=0, padx=2, pady=2)
+        ttk.Button(buttons_frame, text="Reiniciar", command=self._restart_game, width=8).grid(row=0, column=1, padx=2, pady=2)
+        ttk.Button(buttons_frame, text="Deshacer", command=self._undo, width=8).grid(row=1, column=0, padx=2, pady=2)
+        ttk.Button(buttons_frame, text="Guardar", command=self._save_game, width=8).grid(row=1, column=1, padx=2, pady=2)
+        ttk.Button(buttons_frame, text="Cargar", command=self._load_game, width=17).grid(row=2, column=0, columnspan=2, padx=2, pady=2, sticky="ew")
+        
+        # Toggle de cuadrados de control
+        ttk.Button(buttons_frame, text="Control", command=self._toggle_control_squares, width=17).grid(row=3, column=0, columnspan=2, padx=2, pady=2, sticky="ew")
+
+    def _change_difficulty(self):
+        """Cambiar el nivel de dificultad del IA"""
+        new_diff = self.difficulty_var.get()
+        self.ai.set_difficulty(new_diff)
+        dbg(f"[DIFFICULTY] Cambiado a {new_diff}: {self.ai.difficulty_config}")
+        messagebox.showinfo("Dificultad", f"IA ajustada a: {self.ai.difficulty_config['name']}")
+
+    def _toggle_control_squares(self):
+        """Toggle para mostrar/ocultar cuadrados controlados"""
+        self.show_control_squares = not self.show_control_squares
+        self._draw_board()
+        dbg(f"[CONTROL] Toggle control squares: {self.show_control_squares}")
 
     # draw
     def _load_piece_images(self):
@@ -136,6 +173,17 @@ class BoardGUI(tk.Tk):
                 color = BOARD_COLOR_LIGHT if (r + c) % 2 == 0 else BOARD_COLOR_DARK
                 self.canvas.create_rectangle(x1, y1, x2, y2, fill=color, outline="")
 
+        # Dibujar cuadrados controlados por la IA (si está activo)
+        if self.show_control_squares:
+            self._update_controlled_squares()
+            for sq in self.controlled_squares:
+                f, r = chess.square_file(sq), chess.square_rank(sq)
+                x1 = f * SQUARE_SIZE
+                y1 = (7 - r) * SQUARE_SIZE
+                x2 = x1 + SQUARE_SIZE
+                y2 = y1 + SQUARE_SIZE
+                self.canvas.create_rectangle(x1, y1, x2, y2, fill="#FF6B6B", outline="", stipple="gray50")
+
         # Dibujar anotaciones del último movimiento (resaltado)
         if len(self.game.board.move_stack) > 0:
             last_move = self.game.board.move_stack[-1]
@@ -157,17 +205,16 @@ class BoardGUI(tk.Tk):
             to_y2 = to_y1 + SQUARE_SIZE
             self.canvas.create_rectangle(to_x1, to_y1, to_x2, to_y2, fill="#FFEB99", outline="")
             
-            # Guardar SAN para mostrar más tarde (después de dibujar las piezas)
-            # El SAN fue calculado y guardado en _apply_move_force() ANTES del push
+            # Guardar SAN para mostrar más tarde
             if hasattr(self, '_last_move_san_text'):
                 self._last_move_san = (to_x1 + 8, to_y1 + 8, self._last_move_san_text)
             else:
                 self._last_move_san = None
 
-        # Dibujar indicadores de movimientos (debajo de las piezas)
+        # Dibujar indicadores de movimientos
         self._draw_move_indicators()
 
-        # Dibujar piezas usando imágenes (con referencias mantenidas vivas)
+        # Dibujar piezas
         for sq in chess.SQUARES:
             p = self.game.piece_at(sq)
             if not p:
@@ -177,33 +224,26 @@ class BoardGUI(tk.Tk):
             x = f * SQUARE_SIZE + SQUARE_SIZE / 2
             y = (7 - r) * SQUARE_SIZE + SQUARE_SIZE / 2
             
-            # Usar imagen si está disponible
             if symbol in self.piece_images_cache and self.piece_images_cache[symbol] is not None:
                 try:
-                    # El cache contiene tupla (PIL_Image, PhotoImage)
-                    # Solo necesitamos el PhotoImage para el canvas
                     img_data = self.piece_images_cache[symbol]
                     if isinstance(img_data, tuple):
                         pil_img, photo_img = img_data
                     else:
                         photo_img = img_data
                     
-                    # Mantener referencia en canvas_images para evitar garbage collection
                     self.canvas_images.append(photo_img)
                     self.canvas.create_image(x, y, image=photo_img)
-                    dbg(f"✓ [DRAW] pieza {symbol} dibujada en ({f},{r})")
                 except Exception as e:
                     dbg(f"✗ [DRAW] error drawing image for {symbol}: {e}")
-                    # Fallback a símbolo Unicode
                     txt = PIECE_SYMBOLS.get(symbol, '?')
                     self.canvas.create_text(x, y, text=txt, font=("DejaVu Sans", 48, "bold"), fill="#000000")
             else:
-                # Sin imagen disponible - usar símbolo Unicode
                 dbg(f"⚠ [DRAW] imagen no disponible para {symbol}, usando fallback Unicode")
                 txt = PIECE_SYMBOLS.get(symbol, '?')
                 self.canvas.create_text(x, y, text=txt, font=("DejaVu Sans", 48, "bold"), fill="#000000")
 
-        # Dibujar anotación SAN encima de la pieza destino si existe
+        # Dibujar anotación SAN
         try:
             if hasattr(self, '_last_move_san') and self._last_move_san:
                 x_txt, y_txt, txt = self._last_move_san
@@ -211,11 +251,12 @@ class BoardGUI(tk.Tk):
         except Exception:
             pass
 
-        # Dibujar selección (borde) encima de las piezas
+        # Dibujar selección
         self._draw_selection_and_moves()
         
-        # Actualizar lista de movimientos
+        # Actualizar información
         self._update_move_list()
+        self._update_evaluation()
         dbg("[DRAW] board fen:", self.game.board.fen(), " turn:", "WHITE" if self.game.board.turn==chess.WHITE else "BLACK")
 
     def _draw_selection_and_moves(self):
@@ -559,13 +600,10 @@ class BoardGUI(tk.Tk):
 
     # helper
     def _update_move_list(self):
-        """Actualiza la lista de movimientos con numeración algebraica.
-        Lee directamente del historial que se construye mientras se hacen los moves.
-        """
+        """Actualiza la lista de movimientos con numeración algebraica."""
         try:
             moves = []
             for i, san in enumerate(self.move_history):
-                # Agrupar por pares (movimiento blanco y negro)
                 if i % 2 == 0:
                     move_num = (i // 2) + 1
                     moves.append(f"{move_num}. {san}")
@@ -580,6 +618,43 @@ class BoardGUI(tk.Tk):
         self.move_text.delete("1.0", "end")
         self.move_text.insert("1.0", text)
         self.move_text.config(state="disabled")
+
+    def _update_evaluation(self):
+        """Actualiza la evaluación de posición mostrada en GUI"""
+        try:
+            if not self.ai_available:
+                self.eval_label.config(text="Evaluación: Stockfish no disponible")
+                return
+            
+            eval_score, eval_desc = self.ai.get_evaluation(self.game.board)
+            
+            if eval_score is None:
+                self.eval_label.config(text="Evaluación: -")
+                self.info_label.config(text="")
+            else:
+                # Mostrar evaluación numérica
+                if eval_score == float('inf') or eval_score == float('-inf'):
+                    eval_text = eval_desc
+                else:
+                    # Mostrar positivo si ventaja blancas, negativo si negras
+                    eval_text = f"Evaluación: {eval_score:+.1f} peones"
+                
+                self.eval_label.config(text=eval_text)
+                self.info_label.config(text=eval_desc if eval_desc else "")
+        except Exception as e:
+            dbg("[ERROR] en _update_evaluation:", e)
+            self.eval_label.config(text="Evaluación: Error")
+
+    def _update_controlled_squares(self):
+        """Actualiza los cuadrados controlados por la IA negra"""
+        self.controlled_squares = set()
+        try:
+            # Cuadrados atacados por piezas negras
+            for sq in chess.SQUARES:
+                if self.game.board.is_attacked_by(chess.BLACK, sq):
+                    self.controlled_squares.add(sq)
+        except Exception as e:
+            dbg("[ERROR] en _update_controlled_squares:", e)
 
     def _new_game(self):
         self.game.reset()

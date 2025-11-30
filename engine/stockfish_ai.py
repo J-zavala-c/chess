@@ -1,25 +1,42 @@
 """
 Módulo: engine.stockfish_ai
 Encapsula la comunicación con Stockfish mediante python-chess.engine.
+Incluye sistema de niveles de dificultad y análisis de evaluación.
 """
 from __future__ import annotations
 import chess
 import chess.engine
-from typing import Optional
+from typing import Optional, Tuple
 
 # Ajusta la ruta si tu ejecutable no está en PATH
 STOCKFISH_PATH = "stockfish"
 
+# Niveles de dificultad del IA
+DIFFICULTY_LEVELS = {
+    "fácil": {"depth": 5, "time": 0.2, "name": "Fácil (principiante)"},
+    "medio": {"depth": 12, "time": 0.8, "name": "Medio (intermedio)"},
+    "difícil": {"depth": 20, "time": 2.0, "name": "Difícil (experto)"},
+}
+
 class StockfishAI:
-    def __init__(self, path: Optional[str] = None):
+    def __init__(self, path: Optional[str] = None, difficulty: str = "medio"):
         self.path = path or STOCKFISH_PATH
         self.engine: Optional[chess.engine.SimpleEngine] = None
+        self.difficulty = difficulty if difficulty in DIFFICULTY_LEVELS else "medio"
+        self.difficulty_config = DIFFICULTY_LEVELS[self.difficulty]
+        self.last_evaluation = None  # Almacenar evaluación para mostrar
 
     def start(self):
         """Inicia el motor (si no está iniciado). Lanza excepción si falla."""
         if self.engine:
             return
         self.engine = chess.engine.SimpleEngine.popen_uci(self.path)
+
+    def set_difficulty(self, difficulty: str):
+        """Cambiar el nivel de dificultad"""
+        if difficulty in DIFFICULTY_LEVELS:
+            self.difficulty = difficulty
+            self.difficulty_config = DIFFICULTY_LEVELS[difficulty]
 
     def stop(self):
         if self.engine:
@@ -29,16 +46,21 @@ class StockfishAI:
                 pass
             self.engine = None
 
-    def best_move(self, board: chess.Board, time_limit: Optional[float] = 0.5, depth: Optional[int] = None) -> Optional[chess.Move]:
+    def best_move(self, board: chess.Board, time_limit: Optional[float] = None, depth: Optional[int] = None) -> Optional[chess.Move]:
         """
         Devuelve el mejor movimiento según Stockfish.
-        Si depth es proporcionado se usa como límite, si no, se usa time_limit (segundos).
+        Si depth/time_limit no se proporcionan, usa la configuración de dificultad actual.
         """
         if not self.engine:
             self.start()
         if not self.engine:
             return None
         try:
+            # Usar configuración de dificultad si no se especifica
+            if depth is None and time_limit is None:
+                depth = self.difficulty_config["depth"]
+                time_limit = self.difficulty_config["time"]
+            
             if depth is not None:
                 limit = chess.engine.Limit(depth=depth)
             else:
@@ -48,7 +70,7 @@ class StockfishAI:
         except Exception:
             return None
 
-    def analyze(self, board: chess.Board, time_limit: Optional[float] = 0.5, depth: Optional[int] = None):
+    def analyze(self, board: chess.Board, time_limit: Optional[float] = None, depth: Optional[int] = None):
         """
         Devuelve el diccionario de info resultante del análisis (score, pv, etc.).
         """
@@ -57,11 +79,19 @@ class StockfishAI:
         if not self.engine:
             return None
         try:
+            # Usar configuración de dificultad si no se especifica
+            if depth is None and time_limit is None:
+                depth = self.difficulty_config["depth"]
+                time_limit = self.difficulty_config["time"]
+            
             if depth is not None:
                 limit = chess.engine.Limit(depth=depth)
             else:
                 limit = chess.engine.Limit(time=time_limit)
             info = self.engine.analyse(board, limit)
+            # Guardar evaluación para mostrar en GUI
+            if info and "score" in info:
+                self.last_evaluation = info["score"]
             return info
         except Exception:
             return None
@@ -142,10 +172,8 @@ class StockfishAI:
 
     def get_smart_move(self, board: chess.Board) -> Optional[chess.Move]:
         """
-        Busca el mejor movimiento combinando múltiples estrategias:
-        1. Checkmate en 1 movimiento (si existe)
-        2. Usar Stockfish si disponible (análisis profundo)
-        3. Fallback a táctica inteligente
+        Busca el mejor movimiento combinando múltiples estrategias.
+        Usa la dificultad configurada para ajustar profundidad/tiempo.
         """
         if not board.legal_moves:
             return None
@@ -157,18 +185,18 @@ class StockfishAI:
             if board_copy.is_checkmate():
                 return move
         
-        # 2. USAR STOCKFISH SI DISPONIBLE (análisis profundo)
+        # 2. USAR STOCKFISH SI DISPONIBLE (análisis con dificultad configurada)
         if self.engine:
             try:
-                # Buscar con profundidad 12 o tiempo limitado
-                sf_move = self.best_move(board, time_limit=0.8, depth=12)
+                sf_move = self.best_move(board)
                 if sf_move:
+                    # También obtener evaluación para mostrar
+                    analysis = self.analyze(board)
                     return sf_move
             except Exception:
                 pass
         
         # 3. FALLBACK A TÁCTICA INTELIGENTE
-        # Combina capturas, amenazas y desarrollo
         best_move = None
         best_score = -10000
         
@@ -189,9 +217,8 @@ class StockfishAI:
                 }.get(captured.piece_type, 0)
                 score += 100 + piece_val * 20
                 
-                # Verificar si la captura expone el rey
                 if board_copy.is_check():
-                    score -= 1000  # Muy malo: dejaría el rey en jaque
+                    score -= 1000
             
             # B. Amenazas múltiples (forks)
             threats = self._count_threats(board_copy, chess.BLACK)
@@ -203,20 +230,19 @@ class StockfishAI:
             if 2 <= to_file <= 5 and 2 <= to_rank <= 5:
                 score += 20
             
-            # D. Desarrollo (mover piezas desde fila inicial)
+            # D. Desarrollo
             piece = board.piece_at(move.from_square)
             if piece and piece.piece_type in [chess.KNIGHT, chess.BISHOP]:
                 from_rank = chess.square_rank(move.from_square)
-                if from_rank == 7:  # Negro comienza en fila 7
+                if from_rank == 7:
                     score += 25
             
-            # E. Defensa: evitar piezas colgando (pero no tan restrictivo)
+            # E. Defensa
             if self._is_hanging(board_copy, move.to_square, chess.WHITE):
                 score -= 20
             
-            # F. Penalty si el rey queda bajo ataque después
+            # F. Check
             if board_copy.is_check():
-                # Es jaque al rey enemigo, eso es BUENO
                 score += 50
             
             if score > best_score:
@@ -224,6 +250,52 @@ class StockfishAI:
                 best_move = move
         
         return best_move or next(iter(board.legal_moves), None)
+    
+    def get_evaluation(self, board: chess.Board) -> Tuple[Optional[float], Optional[str]]:
+        """
+        Devuelve (evaluación numérica, texto descriptivo) de la posición actual.
+        Evaluación positiva = ventaja para blancas, negativa = ventaja para negras
+        """
+        if not self.engine:
+            return None, None
+        
+        try:
+            analysis = self.analyze(board)
+            if not analysis or "score" not in analysis:
+                return None, None
+            
+            score_obj = analysis["score"]
+            
+            # Convertir score a número
+            if score_obj.is_mate():
+                # Jaque mate
+                moves_to_mate = score_obj.mate()
+                if moves_to_mate > 0:
+                    return float('inf'), f"Mate blancas en {abs(moves_to_mate)} movimientos"
+                else:
+                    return float('-inf'), f"Mate negras en {abs(moves_to_mate)} movimientos"
+            else:
+                # Evaluación en centipeones (1/100 de peón)
+                eval_score = score_obj.cp / 100.0  # Convertir a peones
+                eval_score = eval_score * (-1 if board.turn == chess.BLACK else 1)  # Ajustar por turno
+                
+                # Descripción textual
+                if abs(eval_score) < 0.5:
+                    desc = "Posición igualada"
+                elif eval_score > 3:
+                    desc = "Ventaja significativa para blancas"
+                elif eval_score > 1:
+                    desc = "Ligera ventaja para blancas"
+                elif eval_score < -3:
+                    desc = "Ventaja significativa para negras"
+                elif eval_score < -1:
+                    desc = "Ligera ventaja para negras"
+                else:
+                    desc = "Posición igualada"
+                
+                return eval_score, desc
+        except Exception:
+            return None, None
     
     def _count_threats(self, board: chess.Board, color: int) -> int:
         """Cuenta cuántas piezas enemigas están siendo amenazadas"""
