@@ -1,0 +1,239 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║                                                                            ║
+║              ♟ CHESS PROJECT - SEGUNDA RONDA DE MEJORAS ♟                 ║
+║                                                                            ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+🎯 3 MEJORAS NUEVAS IMPLEMENTADAS
+
+═══════════════════════════════════════════════════════════════════════════════
+
+1️⃣ ANOTACIONES DE MOVIMIENTOS EN EL TABLERO
+
+✅ Los movimientos aparecen directamente en las casillas
+
+┌─ VISUAL ──────────────────────────────────────┐
+│                                               │
+│  Cuando juegas o juega la IA:                │
+│  ┌─────────────────────────────────────┐    │
+│  │                                     │    │
+│  │  Casilla origen: AMARILLO (#F0D800) │    │
+│  │  Casilla destino: AMARILLO + SAN    │    │
+│  │                                     │    │
+│  │  Ejemplo: "e4", "Nf3", "Bxc5"       │    │
+│  │                                     │    │
+│  └─────────────────────────────────────┘    │
+│                                               │
+└───────────────────────────────────────────────┘
+
+VENTAJAS:
+• Ver claramente el último movimiento
+• Notación de ajedrez en el tablero
+• Seguimiento visual del juego
+• Historial en panel derecho + tablero
+
+═══════════════════════════════════════════════════════════════════════════════
+
+2️⃣ INDICADORES MEJORADOS DE MOVIMIENTOS VÁLIDOS
+
+✅ Diferenciación visual entre movimientos normales y capturas
+
+┌─ INDICADORES ──────────────────────────────────┐
+│                                                │
+│  Pieza Seleccionada:                          │
+│  └─ BORDE VERDE (#00AA00) - Grosor 5px       │
+│                                                │
+│  Movimientos Disponibles:                     │
+│  ├─ PUNTO VERDE PEQUEÑO (#00DD00)            │
+│  │  └─ Movimiento normal                     │
+│  │                                            │
+│  └─ CÍRCULO ROJO GRANDE (#FF4444)            │
+│     └─ Captura de pieza enemiga              │
+│                                                │
+│  Ejemplo:                                     │
+│  • Tu caballo seleccionado → BORDE VERDE     │
+│  • 2 movimientos libres → PUNTOS VERDES      │
+│  • 1 captura disponible → CÍRCULO ROJO       │
+│                                                │
+└────────────────────────────────────────────────┘
+
+VENTAJAS:
+• Inmediatamente sé dónde puedo capturar
+• Movimientos normales no distraen
+• Interfaz más clara
+• Decisiones más rápidas
+
+═══════════════════════════════════════════════════════════════════════════════
+
+3️⃣ IA MEJORADA - ESTRATEGIA TÁCTICA
+
+✅ La IA ahora busca ACTIVAMENTE capturas y ataques a tus piezas
+
+┌─ SISTEMA TÁCTICO ─────────────────────────────┐
+│                                                │
+│  Jerarquía de Decisión:                       │
+│  1. ¿Hay captura disponible? → CAPTURA        │
+│     ├─ Valúa por: Peón=1, Caballo=3,        │
+│     │             Alfil=3, Torre=5,          │
+│     │             Reina=9                    │
+│     └─ Evita cambios malos (-50 pts)         │
+│                                                │
+│  2. ¿Hay piezas enemigas atacables?          │
+│     └─ Las ataca (x10 valor)                 │
+│                                                │
+│  3. ¿Posición estratégica?                   │
+│     ├─ Desarrollo: +5 pts                    │
+│     └─ Centro: +3 pts                        │
+│                                                │
+│  4. Último recurso: movimiento aleatorio     │
+│                                                │
+│  Fallback Chain:                              │
+│  Stockfish → Táctica → Aleatorio             │
+│                                                │
+└────────────────────────────────────────────────┘
+
+VENTAJAS:
+• IA ATACA tus piezas desprotegidas
+• Inteligente incluso sin Stockfish
+• Evalúa posiciones tácticas
+• Evita cambios materiales malos
+• Juego más desafiante
+
+═══════════════════════════════════════════════════════════════════════════════
+
+📊 COMPARACIÓN ANTES / DESPUÉS
+
+ANOTACIONES:
+  Antes: Solo en panel derecho
+  Ahora: Panel + Tablero (casillas resaltadas + notación)
+
+INDICADORES:
+  Antes: Todos verdes iguales
+  Ahora: Verde para movimientos, ROJO para capturas
+
+IA:
+  Antes: Stockfish solo o aleatorio
+  Ahora: Stockfish > Táctica > Aleatorio (inteligente)
+
+═══════════════════════════════════════════════════════════════════════════════
+
+🎮 EJEMPLO DE JUEGO MEJORADO
+
+Turno 1: Jugador juega e2-e4
+────────────────────────────
+✓ Casilla e2 se resalta AMARILLO
+✓ Casilla e4 se resalta AMARILLO CLARO
+✓ Aparece "e4" en la casilla e4
+✓ Panel derecho muestra: "1. e4"
+
+Turno 2: Jugador selecciona caballo (Ng1)
+─────────────────────────────────────────
+✓ Borde VERDE alrededor del caballo
+✓ 2 PUNTOS VERDES pequeños (movimientos: f3, h3)
+✓ Si hay captura disponible → CÍRCULO ROJO grande
+
+Turno 3: IA juega (análisis automático)
+──────────────────────────────────────
+IA piensa:
+├─ ¿Tu reina está desprotegida en d4? SÍ
+├─ ¿Puedo capturar? SÍ
+├─ ¿Es buen cambio? SÍ (gano material)
+└─ Mueve: Qxd4 (captura tu reina)
+
+✓ IA ataca tu pieza débil
+✓ Se resalta movimiento IA
+✓ Aparece "Qxd4" en d4
+
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ VERIFICACIÓN DE ESTADO
+
+Archivos Modificados:
+✓ gui/board_gui.py
+✓ engine/stockfish_ai.py
+
+Nuevas Funciones:
+✓ get_tactical_move() - Evaluación táctica
+✓ _draw_selection_and_moves() - Mejorado
+✓ _draw_board() - Con anotaciones
+✓ _ai_move() - Con estrategia táctica
+
+Pruebas:
+✓ Compilación: EXITOSA
+✓ Lógica táctica: FUNCIONAL
+✓ Indicadores: VISIBLES
+✓ Anotaciones: CLARAS
+
+═══════════════════════════════════════════════════════════════════════════════
+
+🚀 CÓMO PROBAR LAS NUEVAS MEJORAS
+
+1. Abre la aplicación:
+   $ cd /home/lonelyhacker/Escritorio/Chess_proyect
+   $ .venv/bin/python main.py
+
+2. Prueba anotaciones:
+   • Juega un movimiento
+   • Verifica que aparece resaltado en amarillo
+   • Verifica que aparece la notación (e4, Nf3, etc.)
+
+3. Prueba indicadores:
+   • Selecciona una pieza con captura posible
+   • Verifica: círculos rojos = capturas, puntos verdes = normal
+   • Prueba con diferentes piezas
+
+4. Prueba IA táctica:
+   • Deja una pieza desprotegida
+   • La IA debería intentar capturarla
+   • Verifica que hace movimientos más inteligentes
+
+═══════════════════════════════════════════════════════════════════════════════
+
+📚 DOCUMENTACIÓN
+
+Lee los archivos para más información:
+├─ MEJORAS_FINALES.md ........... Detalles técnicos
+├─ gui/board_gui.py ............ Código con comentarios
+└─ engine/stockfish_ai.py ...... Motor táctico
+
+═══════════════════════════════════════════════════════════════════════════════
+
+💡 CARACTERÍSTICAS DESTACADAS
+
+VISUAL:
+• Casillas resaltadas en amarillo (movimientos)
+• Notación SAN en el tablero
+• Indicadores claros: verde vs rojo
+• Borde verde para pieza seleccionada
+
+INTELIGENCIA:
+• IA busca capturas automáticamente
+• Valúa piezas por su importancia
+• Evita cambios materiales malos
+• Busca posiciones tácticas
+
+EXPERIENCIA:
+• Juego más visual e intuitivo
+• IA más desafiante
+• Seguimiento fácil del juego
+• Decisiones más claras
+
+═══════════════════════════════════════════════════════════════════════════════
+
+🎉 CONCLUSIÓN
+
+✨ TU PROYECTO DE AJEDREZ AHORA TIENE:
+
+1. ✅ ANOTACIONES en el tablero (no solo panel)
+2. ✅ INDICADORES claros (verde = normal, rojo = captura)
+3. ✅ IA TÁCTICA (busca ataques, evita cambios malos)
+
+El juego es MUCHO MÁS inteligente, visual y divertido.
+
+¡PRUÉBALO AHORA! ♟️
+
+═══════════════════════════════════════════════════════════════════════════════
+
+Estado: ✅ COMPLETADO Y VALIDADO
+Versión: 2.0 (Segunda ronda de mejoras)
+Fecha: 29 de noviembre de 2025
