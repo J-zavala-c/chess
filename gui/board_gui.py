@@ -401,9 +401,11 @@ class BoardGUI(tk.Tk):
                 if self.game.board.is_checkmate():
                     self.game_over = True
                     messagebox.showinfo("Jaque mate", f"Jaque mate. Resultado: {self.game.board.result()}")
+                    self.after(500, self._new_game)  # Auto-restart after 500ms
                 elif self.game.board.is_stalemate() or self.game.board.is_insufficient_material():
                     self.game_over = True
                     messagebox.showinfo("Tablas", "La partida ha terminado en tablas.")
+                    self.after(500, self._new_game)  # Auto-restart after 500ms
                 elif self.game.board.is_check():
                     # notify check but allow game to continue
                     messagebox.showinfo("Jaque", "¡Jaque al rey!")
@@ -423,9 +425,11 @@ class BoardGUI(tk.Tk):
                     if self.game.board.is_checkmate():
                         self.game_over = True
                         messagebox.showinfo("Jaque mate", f"Jaque mate. Resultado: {self.game.board.result()}")
+                        self.after(500, self._new_game)  # Auto-restart after 500ms
                     elif self.game.board.is_stalemate() or self.game.board.is_insufficient_material():
                         self.game_over = True
                         messagebox.showinfo("Tablas", "La partida ha terminado en tablas.")
+                        self.after(500, self._new_game)  # Auto-restart after 500ms
                     elif self.game.board.is_check():
                         messagebox.showinfo("Jaque", "¡Jaque al rey!")
                     return True
@@ -501,9 +505,11 @@ class BoardGUI(tk.Tk):
                             if self.game.board.is_checkmate():
                                 self.game_over = True
                                 messagebox.showinfo("Jaque mate", f"Jaque mate. Resultado: {self.game.board.result()}")
+                                self.after(500, self._new_game)  # Auto-restart after 500ms
                             elif self.game.board.is_stalemate() or self.game.board.is_insufficient_material():
                                 self.game_over = True
                                 messagebox.showinfo("Tablas", "La partida ha terminado en tablas.")
+                                self.after(500, self._new_game)  # Auto-restart after 500ms
                             elif self.game.board.is_check():
                                 messagebox.showinfo("Jaque", "¡Jaque al rey!")
                         else:
@@ -522,9 +528,11 @@ class BoardGUI(tk.Tk):
                                     if self.game.board.is_checkmate():
                                         self.game_over = True
                                         messagebox.showinfo("Jaque mate", f"Jaque mate. Resultado: {self.game.board.result()}")
+                                        self.after(500, self._new_game)  # Auto-restart after 500ms
                                     elif self.game.board.is_stalemate() or self.game.board.is_insufficient_material():
                                         self.game_over = True
                                         messagebox.showinfo("Tablas", "La partida ha terminado en tablas.")
+                                        self.after(500, self._new_game)  # Auto-restart after 500ms
                                     elif self.game.board.is_check():
                                         messagebox.showinfo("Jaque", "¡Jaque al rey!")
                                     pushed = True
